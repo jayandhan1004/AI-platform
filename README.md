@@ -1,6 +1,1100 @@
-# AI-platform
+import { useState, useEffect, useRef } from "react";
 
-Jvy customs platform · JSX
-Copy
-import { useState, useEffect, useRef } from "react"; // ============================================================ // CONSTANTS & DATA // ============================================================ const COLORS = { primary: "#0a5c36", primaryLight: "#127a4a", primaryDark: "#073d24", accent: "#1a7fd4", accentLight: "#3a9fe4", white: "#ffffff", gray50: "#f8fafc", gray100: "#f1f5f9", gray200: "#e2e8f0", gray300: "#cbd5e1", gray400: "#94a3b8", gray500: "#64748b", gray600: "#475569", gray700: "#334155", gray800: "#1e293b", danger: "#dc2626", warning: "#d97706", success: "#059669", }; const NAV_ITEMS = [ { id: "dashboard", label: "Dashboard", icon: "⬛" }, { id: "upload", label: "Document Upload", icon: "📤" }, { id: "hscode", label: "HS Code Classifier", icon: "🤖" }, { id: "compliance", label: "Compliance Alerts", icon: "🛡️" }, { id: "documents", label: "Customs Documents", icon: "📋" }, { id: "tracking", label: "Submission Tracking", icon: "📍" }, { id: "feedback", label: "AI Feedback", icon: "🔄" }, { id: "audit", label: "Audit Log", icon: "📊" }, ]; const SAMPLE_SHIPMENTS = [ { id: "SHP-001", product: "Industrial Hydraulic Pumps", origin: "Germany", dest: "India", status: "Cleared", risk: "Low", hs: "8413.50", value: "$42,000" }, { id: "SHP-002", product: "Lithium Battery Cells", origin: "China", dest: "USA", status: "Under Review", risk: "High", hs: "8507.60", value: "$118,500" }, { id: "SHP-003", product: "Cotton Fabric Rolls", origin: "Bangladesh", dest: "UK", status: "Pending", risk: "Low", hs: "5208.21", value: "$8,200" }, { id: "SHP-004", product: "Medical Ventilators", origin: "USA", dest: "UAE", status: "Flagged", risk: "Medium", hs: "9019.20", value: "$285,000" }, { id: "SHP-005", product: "Wireless Headphones", origin: "China", dest: "Germany", status: "Cleared", risk: "Low", hs: "8518.30", value: "$31,400" }, ]; const COMPLIANCE_ALERTS = [ { id: 1, type: "Embargo", severity: "High", product: "Lithium Battery Cells", message: "Dual-use technology check required for USA destination. EAR99 classification needed.", shipment: "SHP-002" }, { id: 2, type: "Value Threshold", severity: "Medium", product: "Medical Ventilators", message: "Value exceeds $250,000 threshold. Additional certification required by UAE customs authority.", shipment: "SHP-004" }, { id: 3, type: "Restricted Item", severity: "High", product: "Industrial Chemicals", message: "Product may contain controlled substances. Rotterdam Convention compliance required.", shipment: "SHP-006" }, { id: 4, type: "Documentation", severity: "Low", product: "Cotton Fabric Rolls", message: "Certificate of Origin must be issued by certified chamber of commerce for UK destination.", shipment: "SHP-003" }, ]; const AUDIT_LOGS = [ { time: "2025-03-04 09:42:11", user: "admin@jvygroup.com", action: "HS Code Approved", detail: "Approved HS 8413.50 for SHP-001", ip: "192.168.1.10" }, { time: "2025-03-04 09:15:33", user: "analyst@jvygroup.com", action: "Document Uploaded", detail: "Invoice_SHP-002.pdf uploaded", ip: "192.168.1.15" }, { time: "2025-03-04 08:58:07", user: "system", action: "AI Classification", detail: "Auto-classified 5 items for SHP-003", ip: "internal" }, { time: "2025-03-03 17:30:22", user: "manager@jvygroup.com", action: "Compliance Override", detail: "Override applied for SHP-004 - awaiting legal review", ip: "192.168.1.8" }, { time: "2025-03-03 14:12:45", user: "analyst@jvygroup.com", action: "Feedback Submitted", detail: "HS code correction: 8507.50 → 8507.60 for SHP-002", ip: "192.168.1.15" }, ]; // ============================================================ // CLAUDE AI INTEGRATION // ============================================================ async function callClaudeAPI(prompt, systemPrompt) { try { const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: systemPrompt, messages: [{ role: "user", content: prompt }], }), }); const data = await response.json(); const text = data.content?.map(i => i.text || "").join("\n") || ""; return text.replace(/```json|```/g, "").trim(); } catch (err) { console.error("Claude API error:", err); return null; } } // ============================================================ // COMPONENTS // ============================================================ function Logo() { return ( <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "20px 16px 16px" }}> <div style={{ width: 42, height: 42, borderRadius: 10, background: "linear-gradient(135deg, #0a5c36, #1a7fd4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 900, color: "#fff", letterSpacing: -1, boxShadow: "0 4px 12px rgba(10,92,54,0.4)" }}>JVY</div> <div> <div style={{ fontFamily: "'Georgia', serif", fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1.1 }}>JVY Group</div> <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", letterSpacing: 1.5, textTransform: "uppercase" }}>Customs AI Platform</div> </div> </div> ); } function Sidebar({ active, onNav }) { return ( <div style={{ width: 220, minHeight: "100vh", flexShrink: 0, background: "linear-gradient(180deg, #0a5c36 0%, #073d24 100%)", display: "flex", flexDirection: "column", boxShadow: "4px 0 20px rgba(0,0,0,0.15)" }}> <Logo /> <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "0 16px 12px" }} /> <nav style={{ flex: 1, padding: "0 10px" }}> {NAV_ITEMS.map(item => ( <button key={item.id} onClick={() => onNav(item.id)} style={{ width: "100%", padding: "9px 12px", marginBottom: 3, borderRadius: 8, border: "none", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10, fontSize: 13, background: active === item.id ? "rgba(255,255,255,0.15)" : "transparent", color: active === item.id ? "#fff" : "rgba(255,255,255,0.7)", fontWeight: active === item.id ? 600 : 400, transition: "all 0.15s", borderLeft: active === item.id ? "3px solid #3a9fe4" : "3px solid transparent", }}> <span style={{ fontSize: 14 }}>{item.icon}</span> {item.label} </button> ))} </nav> <div style={{ padding: 16, borderTop: "1px solid rgba(255,255,255,0.1)" }}> <div style={{ display: "flex", alignItems: "center", gap: 8 }}> <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>👤</div> <div> <div style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>Admin User</div> <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>admin@jvygroup.com</div> </div> </div> </div> </div> ); } function StatCard({ label, value, icon, color, sub }) { return ( <div style={{ background: "#fff", borderRadius: 12, padding: "20px 22px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #f1f5f9", display: "flex", flexDirection: "column", gap: 6 }}> <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}> <div style={{ fontSize: 26, fontWeight: 800, color: color || COLORS.gray800 }}>{value}</div> <div style={{ fontSize: 24, opacity: 0.7 }}>{icon}</div> </div> <div style={{ fontSize: 13, color: COLORS.gray600, fontWeight: 500 }}>{label}</div> {sub && <div style={{ fontSize: 11, color: COLORS.gray400 }}>{sub}</div>} </div> ); } function Badge({ text, type }) { const colors = { High: { bg: "#fee2e2", color: "#dc2626" }, Medium: { bg: "#fef3c7", color: "#d97706" }, Low: { bg: "#d1fae5", color: "#059669" }, Cleared: { bg: "#d1fae5", color: "#059669" }, Pending: { bg: "#fef3c7", color: "#d97706" }, Flagged: { bg: "#fee2e2", color: "#dc2626" }, "Under Review": { bg: "#dbeafe", color: "#1d4ed8" }, }; const style = colors[text] || { bg: "#f1f5f9", color: "#475569" }; return ( <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: style.bg, color: style.color }}>{text}</span> ); } // ============================================================ // PAGES // ============================================================ function DashboardPage() { return ( <div> <h1 style={{ fontSize: 22, fontWeight: 700, color: COLORS.gray800, marginBottom: 4 }}>Operations Dashboard</h1> <p style={{ color: COLORS.gray500, fontSize: 13, marginBottom: 24 }}>Real-time overview of all customs operations — powered by JVY AI Engine</p> <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}> <StatCard label="Total Shipments" value="128" icon="📦" color="#0a5c36" sub="↑ 12% this month" /> <StatCard label="Cleared Today" value="34" icon="✅" color="#059669" sub="Avg. clearance: 2.4h" /> <StatCard label="Compliance Alerts" value="7" icon="⚠️" color="#d97706" sub="3 high priority" /> <StatCard label="AI Accuracy" value="96.4%" icon="🤖" color="#1a7fd4" sub="Based on last 500 entries" /> </div> <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, marginBottom: 24 }}> <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #f1f5f9" }}> <h2 style={{ fontSize: 15, fontWeight: 700, color: COLORS.gray800, marginBottom: 16 }}>Recent Shipments</h2> <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}> <thead> <tr style={{ background: "#f8fafc" }}> {["Shipment ID", "Product", "Origin→Dest", "HS Code", "Value", "Status", "Risk"].map(h => ( <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: COLORS.gray500, fontWeight: 600, fontSize: 11, letterSpacing: 0.5 }}>{h}</th> ))} </tr> </thead> <tbody> {SAMPLE_SHIPMENTS.map((s, i) => ( <tr key={s.id} style={{ borderTop: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}> <td style={{ padding: "10px 12px", fontWeight: 600, color: "#1a7fd4" }}>{s.id}</td> <td style={{ padding: "10px 12px", color: COLORS.gray700 }}>{s.product}</td> <td style={{ padding: "10px 12px", color: COLORS.gray500, fontSize: 12 }}>{s.origin} → {s.dest}</td> <td style={{ padding: "10px 12px", fontFamily: "monospace", color: COLORS.gray700 }}>{s.hs}</td> <td style={{ padding: "10px 12px", color: COLORS.gray700 }}>{s.value}</td> <td style={{ padding: "10px 12px" }}><Badge text={s.status} /></td> <td style={{ padding: "10px 12px" }}><Badge text={s.risk} /></td> </tr> ))} </tbody> </table> </div> <div style={{ background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #f1f5f9" }}> <h2 style={{ fontSize: 15, fontWeight: 700, color: COLORS.gray800, marginBottom: 16 }}>🚨 Active Alerts</h2> {COMPLIANCE_ALERTS.slice(0, 3).map(a => ( <div key={a.id} style={{ padding: "12px", marginBottom: 10, borderRadius: 8, background: a.severity === "High" ? "#fff1f2" : a.severity === "Medium" ? "#fffbeb" : "#f0fdf4", borderLeft: `3px solid ${a.severity === "High" ? "#dc2626" : a.severity === "Medium" ? "#d97706" : "#059669"}` }}> <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}> <span style={{ fontSize: 11, fontWeight: 700, color: a.severity === "High" ? "#dc2626" : a.severity === "Medium" ? "#d97706" : "#059669" }}>{a.type}</span> <Badge text={a.severity} /> </div> <div style={{ fontSize: 12, color: COLORS.gray700, fontWeight: 600 }}>{a.product}</div> <div style={{ fontSize: 11, color: COLORS.gray500, marginTop: 3 }}>{a.message.slice(0, 70)}...</div> </div> ))} </div> </div> </div> ); } function UploadPage() { const [files, setFiles] = useState([]); const [analyzing, setAnalyzing] = useState(false); const [result, setResult] = useState(null); const [dragOver, setDragOver] = useState(false); const fileRef = useRef(); const handleFiles = (newFiles) => { const arr = Array.from(newFiles).map(f => ({ name: f.name, size: f.size, type: f.type })); setFiles(arr); setResult(null); }; const analyzeWithAI = async () => { if (!files.length) return; setAnalyzing(true); setResult(null); const fileNames = files.map(f => f.name).join(", "); const systemPrompt = `You are a customs AI document parser for JVY Group. When given a filename, simulate extracting customs-relevant data. Always respond ONLY in valid JSON with no extra text. The JSON should have fields: productDescription, quantity, weight, value, incoterms, originCountry, destinationCountry, suggestedHSCode, confidence (0-100), top3Alternatives (array of {code, description}), aiReasoning (string explanation), complianceFlags (array of strings).`; const prompt = `Parse the following uploaded document(s) for customs processing: ${fileNames}. Simulate realistic customs data extraction for a logistics company and return the JSON.`; const raw = await callClaudeAPI(prompt, systemPrompt); try { const parsed = JSON.parse(raw); setResult(parsed); } catch { setResult({ error: "AI parsing returned unexpected format. Please retry." }); } setAnalyzing(false); }; return ( <div> <h1 style={{ fontSize: 22, fontWeight: 700, color: COLORS.gray800, marginBottom: 4 }}>Document Upload & AI Parsing</h1> <p style={{ color: COLORS.gray500, fontSize: 13, marginBottom: 24 }}>Upload commercial invoices, packing lists, or PDFs. Our AI will extract all customs-relevant fields automatically.</p> <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}> <div> <div onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }} onClick={() => fileRef.current.click()} style={{ border: `2px dashed ${dragOver ? "#0a5c36" : "#cbd5e1"}`, borderRadius: 12, padding: 40, textAlign: "center", cursor: "pointer", background: dragOver ? "#f0fdf4" : "#fafafa", transition: "all 0.2s", marginBottom: 16 }}> <div style={{ fontSize: 40, marginBottom: 12 }}>📂</div> <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.gray700, marginBottom: 6 }}>Drop files here or click to browse</div> <div style={{ fontSize: 12, color: COLORS.gray400 }}>Supports PDF, Excel (.xlsx), Images (JPG, PNG)</div> <input ref={fileRef} type="file" multiple accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={e => handleFiles(e.target.files)} /> </div> {files.length > 0 && ( <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", padding: 14, marginBottom: 16 }}> <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.gray600, marginBottom: 8 }}>Selected Files ({files.length})</div> {files.map((f, i) => ( <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: i < files.length - 1 ? "1px solid #f1f5f9" : "none" }}> <span style={{ fontSize: 16 }}>{f.name.endsWith(".pdf") ? "📄" : f.name.endsWith(".xlsx") ? "📊" : "🖼️"}</span> <div> <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.gray700 }}>{f.name}</div> <div style={{ fontSize: 10, color: COLORS.gray400 }}>{(f.size / 1024).toFixed(1)} KB</div> </div> </div> ))} </div> )} <button onClick={analyzeWithAI} disabled={!files.length || analyzing} style={{ width: "100%", padding: "12px", borderRadius: 8, border: "none", cursor: files.length && !analyzing ? "pointer" : "not-allowed", background: files.length && !analyzing ? "linear-gradient(135deg, #0a5c36, #127a4a)" : "#e2e8f0", color: files.length && !analyzing ? "#fff" : "#94a3b8", fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}> {analyzing ? <><span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⚙️</span> AI Analyzing Documents...</> : "🤖 Run AI Analysis"} </button> </div> <div> {!result && !analyzing && ( <div style={{ background: "#f8fafc", borderRadius: 12, padding: 30, textAlign: "center", border: "1px solid #e2e8f0" }}> <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.4 }}>🤖</div> <div style={{ color: COLORS.gray400, fontSize: 13 }}>AI extraction results will appear here after upload</div> </div> )} {analyzing && ( <div style={{ background: "#f0fdf4", borderRadius: 12, padding: 30, textAlign: "center", border: "1px solid #bbf7d0" }}> <div style={{ fontSize: 36, marginBottom: 12 }}>⚙️</div> <div style={{ color: "#0a5c36", fontWeight: 600, fontSize: 14 }}>AI Engine Processing...</div> <div style={{ color: "#059669", fontSize: 12, marginTop: 6 }}>Extracting fields · Classifying HS codes · Checking compliance</div> </div> )} {result && !result.error && ( <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 20, fontSize: 13 }}> <div style={{ fontWeight: 700, fontSize: 14, color: "#0a5c36", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>✅ AI Extraction Complete</div> {[ ["Product Description", result.productDescription], ["Quantity", result.quantity], ["Weight", result.weight], ["Declared Value", result.value], ["Incoterms", result.incoterms], ["Origin Country", result.originCountry], ["Destination", result.destinationCountry], ].map(([k, v]) => ( <div key={k} style={{ display: "flex", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}> <span style={{ width: 150, color: COLORS.gray500, fontWeight: 500 }}>{k}</span> <span style={{ color: COLORS.gray800, fontWeight: 600 }}>{v}</span> </div> ))} <div style={{ marginTop: 14, padding: 12, background: "#f0fdf4", borderRadius: 8, border: "1px solid #bbf7d0" }}> <div style={{ fontSize: 12, fontWeight: 700, color: "#0a5c36", marginBottom: 6 }}>🤖 AI Suggested HS Code</div> <div style={{ fontSize: 20, fontFamily: "monospace", fontWeight: 800, color: "#0a5c36" }}>{result.suggestedHSCode}</div> <div style={{ fontSize: 11, color: "#059669", marginTop: 4 }}>Confidence: {result.confidence}%</div> <div style={{ fontSize: 11, color: COLORS.gray600, marginTop: 6 }}>{result.aiReasoning}</div> </div> {result.complianceFlags?.length > 0 && ( <div style={{ marginTop: 10, padding: 10, background: "#fff7ed", borderRadius: 8, border: "1px solid #fed7aa" }}> <div style={{ fontSize: 12, fontWeight: 700, color: "#d97706", marginBottom: 6 }}>⚠️ Compliance Flags</div> {result.complianceFlags.map((f, i) => <div key={i} style={{ fontSize: 11, color: "#92400e", marginBottom: 3 }}>• {f}</div>)} </div> )} </div> )} {result?.error && ( <div style={{ background: "#fff1f2", borderRadius: 12, padding: 20, border: "1px solid #fecdd3", color: "#dc2626", fontSize: 13 }}>⚠️ {result.error}</div> )} </div> </div> </div> ); } function HSCodePage() { const [query, setQuery] = useState(""); const [loading, setLoading] = useState(false); const [result, setResult] = useState(null); const classify = async () => { if (!query.trim()) return; setLoading(true); setResult(null); const systemPrompt = `You are a customs HS code classification AI for JVY Group. Respond ONLY in valid JSON with no extra text. Return: { "primaryCode": "XXXX.XX", "primaryDescription": "...", "confidence": 0-100, "alternatives": [{"code":"...","description":"...","confidence":0-100},{"code":"...","description":"...","confidence":0-100},{"code":"...","description":"...","confidence":0-100}], "reasoning": "detailed explanation of why this code was selected", "keyAttributes": ["attr1","attr2","attr3"], "requiredDocuments": ["doc1","doc2"], "importNotes": "any important duty or import notes" }`; const prompt = `Classify this product for customs HS code: "${query}"`; const raw = await callClaudeAPI(prompt, systemPrompt); try { setResult(JSON.parse(raw)); } catch { setResult({ error: "Classification failed. Please try again." }); } setLoading(false); }; return ( <div> <h1 style={{ fontSize: 22, fontWeight: 700, color: COLORS.gray800, marginBottom: 4 }}>AI HS Code Classifier</h1> <p style={{ color: COLORS.gray500, fontSize: 13, marginBottom: 24 }}>Enter a product description and our AI will suggest the most accurate HS tariff code with confidence scoring.</p> <div style={{ background: "#fff", borderRadius: 12, padding: 24, border: "1px solid #e2e8f0", marginBottom: 20 }}> <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.gray700, display: "block", marginBottom: 8 }}>Product Description</label> <div style={{ display: "flex", gap: 10 }}> <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && classify()} placeholder="e.g. Industrial hydraulic pump for oil & gas, 250 bar, steel housing..." style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, outline: "none", color: COLORS.gray800 }} /> <button onClick={classify} disabled={!query.trim() || loading} style={{ padding: "10px 20px", borderRadius: 8, border: "none", cursor: "pointer", background: query.trim() && !loading ? "linear-gradient(135deg, #0a5c36, #127a4a)" : "#e2e8f0", color: query.trim() && !loading ? "#fff" : "#94a3b8", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}> {loading ? "Classifying..." : "🤖 Classify"} </button> </div> </div> {loading && ( <div style={{ background: "#f0fdf4", borderRadius: 12, padding: 24, textAlign: "center", border: "1px solid #bbf7d0" }}> <div style={{ fontSize: 13, color: "#0a5c36", fontWeight: 600 }}>🤖 AI analyzing product attributes and cross-referencing HS schedule...</div> </div> )} {result && !result.error && ( <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}> <div style={{ background: "#fff", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0" }}> <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.gray600, marginBottom: 16 }}>PRIMARY CLASSIFICATION</div> <div style={{ fontSize: 36, fontFamily: "monospace", fontWeight: 900, color: "#0a5c36", marginBottom: 4 }}>{result.primaryCode}</div> <div style={{ fontSize: 13, color: COLORS.gray700, marginBottom: 12 }}>{result.primaryDescription}</div> <div style={{ marginBottom: 16 }}> <div style={{ fontSize: 12, color: COLORS.gray500, marginBottom: 6 }}>Confidence Score</div> <div style={{ display: "flex", alignItems: "center", gap: 10 }}> <div style={{ flex: 1, height: 10, background: "#e2e8f0", borderRadius: 5, overflow: "hidden" }}> <div style={{ height: "100%", width: `${result.confidence}%`, background: result.confidence > 85 ? "#059669" : result.confidence > 65 ? "#d97706" : "#dc2626", borderRadius: 5 }} /> </div> <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.gray700 }}>{result.confidence}%</span> </div> </div> <div style={{ padding: 12, background: "#f0fdf4", borderRadius: 8, marginBottom: 12 }}> <div style={{ fontSize: 11, fontWeight: 700, color: "#0a5c36", marginBottom: 6 }}>🧠 AI Reasoning</div> <div style={{ fontSize: 12, color: COLORS.gray700, lineHeight: 1.6 }}>{result.reasoning}</div> </div> {result.keyAttributes && ( <div> <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.gray500, marginBottom: 6 }}>KEY ATTRIBUTES IDENTIFIED</div> <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}> {result.keyAttributes.map((a, i) => ( <span key={i} style={{ padding: "3px 10px", background: "#dbeafe", color: "#1d4ed8", borderRadius: 20, fontSize: 11, fontWeight: 500 }}>{a}</span> ))} </div> </div> )} </div> <div> <div style={{ background: "#fff", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0", marginBottom: 16 }}> <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.gray600, marginBottom: 14 }}>TOP 3 ALTERNATIVES</div> {result.alternatives?.map((alt, i) => ( <div key={i} style={{ padding: "10px 12px", borderRadius: 8, background: "#f8fafc", border: "1px solid #f1f5f9", marginBottom: 8 }}> <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}> <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#1a7fd4", fontSize: 15 }}>{alt.code}</span> <span style={{ fontSize: 11, color: COLORS.gray500 }}>{alt.confidence}% match</span> </div> <div style={{ fontSize: 12, color: COLORS.gray600 }}>{alt.description}</div> <div style={{ height: 4, background: "#e2e8f0", borderRadius: 2, marginTop: 6, overflow: "hidden" }}> <div style={{ height: "100%", width: `${alt.confidence}%`, background: "#1a7fd4", borderRadius: 2 }} /> </div> </div> ))} </div> <div style={{ background: "#fff", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0" }}> <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.gray600, marginBottom: 12 }}>REQUIRED DOCUMENTS</div> {result.requiredDocuments?.map((d, i) => ( <div key={i} style={{ padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: 13, color: COLORS.gray700 }}>📄 {d}</div> ))} {result.importNotes && ( <div style={{ marginTop: 12, padding: 10, background: "#fffbeb", borderRadius: 8, fontSize: 12, color: "#92400e" }}> <strong>📌 Note:</strong> {result.importNotes} </div> )} </div> </div> </div> )} </div> ); } function CompliancePage() { const [checking, setChecking] = useState(false); const [aiResult, setAiResult] = useState(null); const [form, setForm] = useState({ product: "", origin: "", destination: "", value: "" }); const runCheck = async () => { if (!form.product) return; setChecking(true); setAiResult(null); const systemPrompt = `You are a customs compliance AI for JVY Group. Respond ONLY in JSON with no extra text. Return: { "riskScore": "Low/Medium/High", "overallRisk": 0-100, "flags": [{"type":"...","severity":"Low/Medium/High","description":"...","recommendation":"..."}], "sanctionsCheck": "Pass/Fail/Review", "dualUseCheck": "Pass/Fail/Review", "exportLicenseRequired": true/false, "summary": "..." }`; const prompt = `Run compliance check for: Product="${form.product}", Origin="${form.origin}", Destination="${form.destination}", Value="${form.value}"`; const raw = await callClaudeAPI(prompt, systemPrompt); try { setAiResult(JSON.parse(raw)); } catch { setAiResult({ error: "Compliance check failed." }); } setChecking(false); }; return ( <div> <h1 style={{ fontSize: 22, fontWeight: 700, color: COLORS.gray800, marginBottom: 4 }}>AI Compliance Engine</h1> <p style={{ color: COLORS.gray500, fontSize: 13, marginBottom: 24 }}>Check shipments against sanctions lists, export controls, and country-specific restrictions in real time.</p> <div style={{ display: "grid", gridTemplateColumns: "400px 1fr", gap: 20 }}> <div style={{ background: "#fff", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0" }}> <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.gray800, marginBottom: 16 }}>Run Compliance Check</div> {[ { label: "Product Description", key: "product", placeholder: "e.g. Industrial laser cutter" }, { label: "Origin Country", key: "origin", placeholder: "e.g. China" }, { label: "Destination Country", key: "destination", placeholder: "e.g. Iran" }, { label: "Declared Value (USD)", key: "value", placeholder: "e.g. $150,000" }, ].map(f => ( <div key={f.key} style={{ marginBottom: 14 }}> <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.gray600, display: "block", marginBottom: 5 }}>{f.label}</label> <input value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} style={{ width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13, boxSizing: "border-box", outline: "none" }} /> </div> ))} <button onClick={runCheck} disabled={!form.product || checking} style={{ width: "100%", padding: "11px", borderRadius: 8, border: "none", cursor: "pointer", background: form.product && !checking ? "linear-gradient(135deg, #0a5c36, #127a4a)" : "#e2e8f0", color: form.product && !checking ? "#fff" : "#94a3b8", fontSize: 13, fontWeight: 600 }}> {checking ? "🔍 Analyzing..." : "🛡️ Run AI Compliance Check"} </button> </div> <div> <div style={{ marginBottom: 16 }}> <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.gray700, marginBottom: 12 }}>System Alerts</div> {COMPLIANCE_ALERTS.map(a => ( <div key={a.id} style={{ padding: 14, marginBottom: 10, borderRadius: 10, background: "#fff", border: "1px solid #e2e8f0", borderLeft: `4px solid ${a.severity === "High" ? "#dc2626" : a.severity === "Medium" ? "#d97706" : "#059669"}` }}> <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}> <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.gray800 }}>{a.type} — {a.product}</span> <div style={{ display: "flex", gap: 8 }}> <span style={{ fontSize: 11, color: COLORS.gray400 }}>{a.shipment}</span> <Badge text={a.severity} /> </div> </div> <div style={{ fontSize: 12, color: COLORS.gray600 }}>{a.message}</div> </div> ))} </div> {aiResult && !aiResult.error && ( <div style={{ background: "#fff", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0" }}> <div style={{ fontSize: 14, fontWeight: 700, color: "#0a5c36", marginBottom: 14 }}>🤖 AI Compliance Assessment</div> <div style={{ display: "flex", gap: 12, marginBottom: 16 }}> {[ { label: "Risk Score", value: aiResult.riskScore, color: aiResult.riskScore === "High" ? "#dc2626" : aiResult.riskScore === "Medium" ? "#d97706" : "#059669" }, { label: "Sanctions", value: aiResult.sanctionsCheck }, { label: "Dual-Use", value: aiResult.dualUseCheck }, { label: "Export License", value: aiResult.exportLicenseRequired ? "Required" : "Not Required" }, ].map(item => ( <div key={item.label} style={{ flex: 1, padding: "10px 12px", background: "#f8fafc", borderRadius: 8, textAlign: "center" }}> <div style={{ fontSize: 13, fontWeight: 700, color: item.color || COLORS.gray700 }}>{item.value}</div> <div style={{ fontSize: 10, color: COLORS.gray400, marginTop: 3 }}>{item.label}</div> </div> ))} </div> {aiResult.flags?.map((f, i) => ( <div key={i} style={{ padding: "10px 12px", background: f.severity === "High" ? "#fff1f2" : "#fffbeb", borderRadius: 8, marginBottom: 8, borderLeft: `3px solid ${f.severity === "High" ? "#dc2626" : "#d97706"}` }}> <div style={{ fontWeight: 600, fontSize: 12, color: COLORS.gray800 }}>{f.type}</div> <div style={{ fontSize: 12, color: COLORS.gray600 }}>{f.description}</div> <div style={{ fontSize: 11, color: "#1a7fd4", marginTop: 4 }}>→ {f.recommendation}</div> </div> ))} <div style={{ padding: 12, background: "#f0fdf4", borderRadius: 8, fontSize: 12, color: "#065f46" }}><strong>Summary:</strong> {aiResult.summary}</div> </div> )} </div> </div> </div> ); } function DocumentsPage() { const [generating, setGenerating] = useState(false); const [doc, setDoc] = useState(null); const [shipment, setShipment] = useState("SHP-002"); const generate = async () => { setGenerating(true); setDoc(null); const s = SAMPLE_SHIPMENTS.find(s => s.id === shipment) || SAMPLE_SHIPMENTS[1]; const systemPrompt = `You are a customs document AI for JVY Group. Generate a complete customs declaration JSON. Respond ONLY in valid JSON with no extra text. Include: declarationNumber, date, exporter (name, address, country), importer (name, address, country), shipmentDetails (mode, containerNo, vesselFlight, departureDate, arrivalDate), lineItems (array of {description, hsCode, quantity, unit, grossWeight, netWeight, unitValue, totalValue, countryOfOrigin}), totalValues (totalGrossWeight, totalNetWeight, totalInvoiceValue, currency), incoterms, freightCharges, insuranceValue, customsDuty, vatAmount, totalTaxes, declarantName, declarantSignatureDate, remarks`; const prompt = `Generate customs declaration for: ${JSON.stringify(s)}`; const raw = await callClaudeAPI(prompt, systemPrompt); try { setDoc(JSON.parse(raw)); } catch { setDoc({ error: "Document generation failed." }); } setGenerating(false); }; return ( <div> <h1 style={{ fontSize: 22, fontWeight: 700, color: COLORS.gray800, marginBottom: 4 }}>Auto-Generated Customs Documents</h1> <p style={{ color: COLORS.gray500, fontSize: 13, marginBottom: 24 }}>AI generates complete, validated customs declarations with consistent data across all fields.</p> <div style={{ background: "#fff", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0", marginBottom: 20, display: "flex", gap: 12, alignItems: "flex-end" }}> <div style={{ flex: 1 }}> <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.gray600, display: "block", marginBottom: 6 }}>Select Shipment</label> <select value={shipment} onChange={e => setShipment(e.target.value)} style={{ width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13, outline: "none" }}> {SAMPLE_SHIPMENTS.map(s => <option key={s.id} value={s.id}>{s.id} — {s.product}</option>)} </select> </div> <button onClick={generate} disabled={generating} style={{ padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer", background: generating ? "#e2e8f0" : "linear-gradient(135deg, #0a5c36, #127a4a)", color: generating ? "#94a3b8" : "#fff", fontSize: 13, fontWeight: 600 }}> {generating ? "Generating..." : "📋 Generate Declaration"} </button> </div> {doc && !doc.error && ( <div style={{ background: "#fff", borderRadius: 12, border: "2px solid #0a5c36", padding: 28 }}> <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, paddingBottom: 16, borderBottom: "2px solid #0a5c36" }}> <div> <div style={{ fontSize: 18, fontWeight: 900, color: "#0a5c36" }}>CUSTOMS DECLARATION FORM</div> <div style={{ fontSize: 12, color: COLORS.gray500, marginTop: 4 }}>JVY Group Automated Export System</div> </div> <div style={{ textAlign: "right" }}> <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.gray700 }}>Declaration No: {doc.declarationNumber}</div> <div style={{ fontSize: 12, color: COLORS.gray500 }}>Date: {doc.date}</div> </div> </div> <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}> {[["Exporter", doc.exporter], ["Importer", doc.importer]].map(([title, party]) => ( <div key={title} style={{ padding: 14, background: "#f8fafc", borderRadius: 8 }}> <div style={{ fontWeight: 700, fontSize: 12, color: COLORS.gray500, marginBottom: 8 }}>{title.toUpperCase()}</div> {party && Object.entries(party).map(([k, v]) => ( <div key={k} style={{ fontSize: 12, color: COLORS.gray700, marginBottom: 3 }}><strong>{k}:</strong> {v}</div> ))} </div> ))} </div> <div style={{ marginBottom: 16 }}> <div style={{ fontWeight: 700, fontSize: 12, color: COLORS.gray500, marginBottom: 8 }}>LINE ITEMS</div> <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}> <thead> <tr style={{ background: "#0a5c36" }}> {["Description", "HS Code", "Qty", "Gross Wt", "Value", "Origin"].map(h => ( <th key={h} style={{ padding: "8px 10px", textAlign: "left", color: "#fff", fontWeight: 600 }}>{h}</th> ))} </tr> </thead> <tbody> {doc.lineItems?.map((item, i) => ( <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#f8fafc", borderBottom: "1px solid #e2e8f0" }}> <td style={{ padding: "8px 10px" }}>{item.description}</td> <td style={{ padding: "8px 10px", fontFamily: "monospace" }}>{item.hsCode}</td> <td style={{ padding: "8px 10px" }}>{item.quantity} {item.unit}</td> <td style={{ padding: "8px 10px" }}>{item.grossWeight}</td> <td style={{ padding: "8px 10px" }}>{item.totalValue}</td> <td style={{ padding: "8px 10px" }}>{item.countryOfOrigin}</td> </tr> ))} </tbody> </table> </div> <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}> {doc.totalValues && Object.entries(doc.totalValues).map(([k, v]) => ( <div key={k} style={{ padding: "10px 12px", background: "#f0fdf4", borderRadius: 6 }}> <div style={{ fontSize: 10, color: "#059669", fontWeight: 600, textTransform: "uppercase" }}>{k.replace(/([A-Z])/g, ' $1')}</div> <div style={{ fontSize: 14, fontWeight: 700, color: "#0a5c36" }}>{v}</div> </div> ))} </div> </div> )} </div> ); } function TrackingPage() { return ( <div> <h1 style={{ fontSize: 22, fontWeight: 700, color: COLORS.gray800, marginBottom: 4 }}>Submission Tracking</h1> <p style={{ color: COLORS.gray500, fontSize: 13, marginBottom: 24 }}>Monitor all customs submission statuses, clearance stages, and broker communications.</p> <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden" }}> <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}> <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.gray800 }}>All Submissions</div> <input placeholder="Search shipments..." style={{ padding: "7px 12px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 12, outline: "none", width: 200 }} /> </div> <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}> <thead> <tr style={{ background: "#f8fafc" }}> {["Shipment ID", "Product", "Origin", "Destination", "HS Code", "Value", "Status", "Risk Level", "Last Updated"].map(h => ( <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: COLORS.gray500, fontWeight: 600, fontSize: 11, letterSpacing: 0.5 }}>{h}</th> ))} </tr> </thead> <tbody> {SAMPLE_SHIPMENTS.map((s, i) => ( <tr key={s.id} style={{ borderTop: "1px solid #f1f5f9" }}> <td style={{ padding: "12px 14px", fontWeight: 700, color: "#1a7fd4" }}>{s.id}</td> <td style={{ padding: "12px 14px" }}>{s.product}</td> <td style={{ padding: "12px 14px", color: COLORS.gray500 }}>{s.origin}</td> <td style={{ padding: "12px 14px", color: COLORS.gray500 }}>{s.dest}</td> <td style={{ padding: "12px 14px", fontFamily: "monospace" }}>{s.hs}</td> <td style={{ padding: "12px 14px" }}>{s.value}</td> <td style={{ padding: "12px 14px" }}><Badge text={s.status} /></td> <td style={{ padding: "12px 14px" }}><Badge text={s.risk} /></td> <td style={{ padding: "12px 14px", color: COLORS.gray400, fontSize: 11 }}>2025-03-0{i + 1} 10:{10 + i * 7}:00</td> </tr> ))} </tbody> </table> </div> </div> ); } function FeedbackPage() { const [shipId, setShipId] = useState("SHP-002"); const [correct, setCorrect] = useState(""); const [reason, setReason] = useState(""); const [submitted, setSubmitted] = useState(false); const [aiResponse, setAiResponse] = useState(null); const [loading, setLoading] = useState(false); const submit = async () => { if (!correct) return; setLoading(true); const systemPrompt = `You are a customs AI feedback processor for JVY Group. Respond ONLY in JSON: { "acknowledged": true, "validCorrection": true/false, "validationNote": "...", "learningImpact": "...", "updatedConfidence": 0-100 }`; const prompt = `Feedback on shipment ${shipId}: User corrects HS code to ${correct}. Reason: ${reason}`; const raw = await callClaudeAPI(prompt, systemPrompt); try { setAiResponse(JSON.parse(raw)); } catch { setAiResponse(null); } setSubmitted(true); setLoading(false); }; return ( <div> <h1 style={{ fontSize: 22, fontWeight: 700, color: COLORS.gray800, marginBottom: 4 }}>AI Feedback & Learning</h1> <p style={{ color: COLORS.gray500, fontSize: 13, marginBottom: 24 }}>Submit corrections to train the AI model and improve future classification accuracy.</p> <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 20 }}> <div style={{ background: "#fff", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0" }}> <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.gray800, marginBottom: 16 }}>Submit HS Code Correction</div> {[ { label: "Shipment ID", value: shipId, onChange: setShipId, placeholder: "e.g. SHP-002", type: "input" }, { label: "Correct HS Code", value: correct, onChange: setCorrect, placeholder: "e.g. 8507.60", type: "input" }, { label: "Correction Reason", value: reason, onChange: setReason, placeholder: "Explain why the AI's classification was wrong...", type: "textarea" }, ].map(f => ( <div key={f.label} style={{ marginBottom: 14 }}> <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.gray600, display: "block", marginBottom: 5 }}>{f.label}</label> {f.type === "textarea" ? ( <textarea value={f.value} onChange={e => f.onChange(e.target.value)} placeholder={f.placeholder} rows={4} style={{ width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13, outline: "none", resize: "vertical", boxSizing: "border-box" }} /> ) : ( <input value={f.value} onChange={e => f.onChange(e.target.value)} placeholder={f.placeholder} style={{ width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13, outline: "none", boxSizing: "border-box" }} /> )} </div> ))} <button onClick={submit} disabled={!correct || loading} style={{ width: "100%", padding: "11px", borderRadius: 8, border: "none", cursor: "pointer", background: correct && !loading ? "linear-gradient(135deg, #1a7fd4, #3a9fe4)" : "#e2e8f0", color: correct && !loading ? "#fff" : "#94a3b8", fontSize: 13, fontWeight: 600 }}> {loading ? "Submitting..." : "🔄 Submit Feedback to AI"} </button> </div> <div> {submitted && aiResponse && ( <div style={{ background: "#fff", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0", marginBottom: 16 }}> <div style={{ fontSize: 14, fontWeight: 700, color: "#0a5c36", marginBottom: 14 }}>✅ AI Acknowledged Feedback</div> {[ ["Valid Correction", aiResponse.validCorrection ? "Yes" : "No"], ["Validation Note", aiResponse.validationNote], ["Learning Impact", aiResponse.learningImpact], ["Updated Confidence", `${aiResponse.updatedConfidence}%`], ].map(([k, v]) => ( <div key={k} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 12 }}> <span style={{ width: 160, color: COLORS.gray500, fontSize: 12, fontWeight: 600 }}>{k}</span> <span style={{ fontSize: 13, color: COLORS.gray800 }}>{v}</span> </div> ))} </div> )} <div style={{ background: "#fff", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0" }}> <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.gray800, marginBottom: 14 }}>Recent Feedback History</div> {[ { ship: "SHP-001", original: "8413.40", corrected: "8413.50", user: "analyst@jvygroup.com", date: "2025-03-03" }, { ship: "SHP-002", original: "8507.50", corrected: "8507.60", user: "analyst@jvygroup.com", date: "2025-03-03" }, { ship: "SHP-003", original: "5208.11", corrected: "5208.21", user: "manager@jvygroup.com", date: "2025-03-02" }, ].map((f, i) => ( <div key={i} style={{ padding: "10px 12px", background: "#f8fafc", borderRadius: 8, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}> <div> <span style={{ fontWeight: 700, color: "#1a7fd4", fontSize: 13 }}>{f.ship}</span> <span style={{ color: COLORS.gray500, fontSize: 12, margin: "0 8px" }}>{f.original} → <strong>{f.corrected}</strong></span> </div> <div style={{ textAlign: "right" }}> <div style={{ fontSize: 11, color: COLORS.gray500 }}>{f.user}</div> <div style={{ fontSize: 10, color: COLORS.gray400 }}>{f.date}</div> </div> </div> ))} </div> </div> </div> </div> ); } function AuditPage() { return ( <div> <h1 style={{ fontSize: 22, fontWeight: 700, color: COLORS.gray800, marginBottom: 4 }}>Audit Log</h1> <p style={{ color: COLORS.gray500, fontSize: 13, marginBottom: 24 }}>Complete immutable record of all system actions, AI decisions, and user changes for regulatory compliance.</p> <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden" }}> <div style={{ padding: "16px 20px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between" }}> <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.gray800 }}>System Audit Trail</div> <span style={{ fontSize: 11, padding: "3px 10px", background: "#d1fae5", color: "#059669", borderRadius: 20, fontWeight: 600 }}>● LIVE</span> </div> <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}> <thead> <tr style={{ background: "#f1f5f9" }}> {["Timestamp", "User", "Action", "Details", "IP Address"].map(h => ( <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: COLORS.gray500, fontWeight: 600, fontSize: 11 }}>{h}</th> ))} </tr> </thead> <tbody> {AUDIT_LOGS.map((log, i) => ( <tr key={i} style={{ borderTop: "1px solid #f1f5f9" }}> <td style={{ padding: "11px 14px", fontFamily: "monospace", fontSize: 12, color: COLORS.gray600 }}>{log.time}</td> <td style={{ padding: "11px 14px", color: "#1a7fd4", fontSize: 12 }}>{log.user}</td> <td style={{ padding: "11px 14px" }}> <span style={{ padding: "3px 10px", background: "#dbeafe", color: "#1d4ed8", borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{log.action}</span> </td> <td style={{ padding: "11px 14px", color: COLORS.gray700 }}>{log.detail}</td> <td style={{ padding: "11px 14px", fontFamily: "monospace", fontSize: 11, color: COLORS.gray400 }}>{log.ip}</td> </tr> ))} </tbody> </table> </div> </div> ); } function LoginPage({ onLogin }) { const [email, setEmail] = useState(""); const [pass, setPass] = useState(""); const [loading, setLoading] = useState(false); const handleLogin = () => { setLoading(true); setTimeout(() => { setLoading(false); onLogin(); }, 800); }; return ( <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0a5c36 0%, #073d24 50%, #1a7fd4 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}> <div style={{ background: "#fff", borderRadius: 16, padding: 40, width: 380, boxShadow: "0 25px 60px rgba(0,0,0,0.3)" }}> <div style={{ textAlign: "center", marginBottom: 30 }}> <div style={{ width: 60, height: 60, borderRadius: 14, background: "linear-gradient(135deg, #0a5c36, #1a7fd4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 900, color: "#fff", margin: "0 auto 12px" }}>JVY</div> <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.gray800 }}>JVY Group</div> <div style={{ fontSize: 12, color: COLORS.gray500, letterSpacing: 1.5, textTransform: "uppercase", marginTop: 2 }}>AI Customs Platform</div> </div> <div style={{ marginBottom: 16 }}> <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.gray600, display: "block", marginBottom: 6 }}>Email Address</label> <input value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@jvygroup.com" style={{ width: "100%", padding: "11px 14px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, outline: "none", boxSizing: "border-box" }} /> </div> <div style={{ marginBottom: 24 }}> <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.gray600, display: "block", marginBottom: 6 }}>Password</label> <input value={pass} onChange={e => setPass(e.target.value)} type="password" placeholder="••••••••" style={{ width: "100%", padding: "11px 14px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, outline: "none", boxSizing: "border-box" }} /> </div> <button onClick={handleLogin} disabled={loading} style={{ width: "100%", padding: "13px", borderRadius: 8, border: "none", cursor: "pointer", background: "linear-gradient(135deg, #0a5c36, #127a4a)", color: "#fff", fontSize: 15, fontWeight: 700 }}> {loading ? "Signing in..." : "Sign In"} </button> <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: COLORS.gray400 }}>Demo: use any credentials to login</div> </div> </div> ); } // ============================================================ // MAIN APP // ============================================================ export default function App() { const [loggedIn, setLoggedIn] = useState(false); const [page, setPage] = useState("dashboard"); const pages = { dashboard: <DashboardPage />, upload: <UploadPage />, hscode: <HSCodePage />, compliance: <CompliancePage />, documents: <DocumentsPage />, tracking: <TrackingPage />, feedback: <FeedbackPage />, audit: <AuditPage />, }; if (!loggedIn) return <LoginPage onLogin={() => setLoggedIn(true)} />; return ( <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Segoe UI', system-ui, sans-serif", background: "#f1f5f9" }}> <style>{` * { margin: 0; padding: 0; box-sizing: border-box; } body { background: #f1f5f9; } button:hover { filter: brightness(1.05); } input:focus, select:focus, textarea:focus { border-color: #0a5c36 !important; box-shadow: 0 0 0 3px rgba(10,92,54,0.1); } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } `}</style> <Sidebar active={page} onNav={setPage} /> <div style={{ flex: 1, padding: 28, overflowY: "auto" }}> {pages[page]} </div> </div> ); }
+// ============================================================
+// VYJ GROUPS - AI CUSTOMS AUTOMATION PLATFORM
+// Full-stack React SPA with live Claude AI integration
+// ============================================================
 
+const COLORS = {
+  navy: "#0A1628",
+  navyMid: "#0D1F3C",
+  navyLight: "#152544",
+  blue: "#1565C0",
+  blueMid: "#1976D2",
+  blueLight: "#2196F3",
+  blueAccent: "#42A5F5",
+  green: "#00897B",
+  greenMid: "#00ACC1",
+  greenBright: "#26C6DA",
+  greenGlow: "#00BCD4",
+  white: "#F0F4FF",
+  whiteDim: "#B8C5E0",
+  border: "#1E3A5F",
+  card: "#0F2035",
+  cardHover: "#132843",
+  danger: "#EF5350",
+  warning: "#FFA726",
+  success: "#66BB6A",
+};
+
+// ============================================================
+// LOGO COMPONENT
+// ============================================================
+function VYJLogo({ size = 40, showText = true }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <svg width={size} height={size} viewBox="0 0 40 40">
+        <defs>
+          <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#00BCD4" />
+            <stop offset="50%" stopColor="#1976D2" />
+            <stop offset="100%" stopColor="#26C6DA" />
+          </linearGradient>
+          <linearGradient id="logoGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#00897B" />
+            <stop offset="100%" stopColor="#1565C0" />
+          </linearGradient>
+        </defs>
+        <polygon points="20,2 38,11 38,29 20,38 2,29 2,11" fill="url(#logoGrad2)" opacity="0.2" />
+        <polygon points="20,2 38,11 38,29 20,38 2,29 2,11" fill="none" stroke="url(#logoGrad)" strokeWidth="1.5" />
+        <text x="20" y="26" textAnchor="middle" fill="url(#logoGrad)" fontSize="14" fontWeight="800" fontFamily="Georgia, serif">V</text>
+        <circle cx="32" cy="10" r="3" fill="#00BCD4" opacity="0.8" />
+        <circle cx="8" cy="10" r="2" fill="#1976D2" opacity="0.6" />
+        <line x1="8" y1="10" x2="32" y2="10" stroke="url(#logoGrad)" strokeWidth="0.8" opacity="0.4" />
+      </svg>
+      {showText && (
+        <div>
+          <div style={{ fontSize: size * 0.38, fontWeight: 800, letterSpacing: "0.12em", background: "linear-gradient(90deg, #00BCD4, #1976D2, #26C6DA)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontFamily: "Georgia, serif", lineHeight: 1 }}>
+            VYJ GROUPS
+          </div>
+          <div style={{ fontSize: size * 0.22, color: COLORS.whiteDim, letterSpacing: "0.18em", fontFamily: "monospace", lineHeight: 1.2 }}>
+            CUSTOMS AI
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// SHARED UI COMPONENTS
+// ============================================================
+function Card({ children, style = {}, glow = false }) {
+  return (
+    <div style={{
+      background: COLORS.card,
+      border: `1px solid ${glow ? COLORS.greenGlow : COLORS.border}`,
+      borderRadius: 12,
+      padding: "20px 24px",
+      boxShadow: glow ? `0 0 20px rgba(0,188,212,0.15)` : "0 4px 20px rgba(0,0,0,0.3)",
+      ...style
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function Badge({ children, color = "blue" }) {
+  const colors = {
+    blue: { bg: "rgba(33,150,243,0.15)", text: "#42A5F5", border: "rgba(33,150,243,0.3)" },
+    green: { bg: "rgba(0,188,212,0.15)", text: "#26C6DA", border: "rgba(0,188,212,0.3)" },
+    danger: { bg: "rgba(239,83,80,0.15)", text: "#EF9A9A", border: "rgba(239,83,80,0.3)" },
+    warning: { bg: "rgba(255,167,38,0.15)", text: "#FFB74D", border: "rgba(255,167,38,0.3)" },
+    success: { bg: "rgba(102,187,106,0.15)", text: "#81C784", border: "rgba(102,187,106,0.3)" },
+  };
+  const c = colors[color] || colors.blue;
+  return (
+    <span style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}`, borderRadius: 6, padding: "2px 10px", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "monospace" }}>
+      {children}
+    </span>
+  );
+}
+
+function StatCard({ icon, label, value, delta, color = COLORS.blueAccent }) {
+  return (
+    <Card style={{ flex: 1, minWidth: 160 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <div style={{ color: COLORS.whiteDim, fontSize: 11, letterSpacing: "0.1em", fontFamily: "monospace", marginBottom: 8 }}>{label}</div>
+          <div style={{ color: COLORS.white, fontSize: 28, fontWeight: 800, fontFamily: "Georgia, serif" }}>{value}</div>
+          {delta && <div style={{ color: COLORS.success, fontSize: 11, marginTop: 4 }}>↑ {delta}</div>}
+        </div>
+        <div style={{ width: 44, height: 44, borderRadius: 10, background: `${color}22`, border: `1px solid ${color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{icon}</div>
+      </div>
+    </Card>
+  );
+}
+
+function Spinner() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{
+        width: 16, height: 16,
+        border: `2px solid ${COLORS.border}`,
+        borderTop: `2px solid ${COLORS.greenGlow}`,
+        borderRadius: "50%",
+        animation: "spin 0.8s linear infinite"
+      }} />
+      <span style={{ color: COLORS.whiteDim, fontSize: 13 }}>AI Processing...</span>
+    </div>
+  );
+}
+
+function Button({ children, onClick, variant = "primary", disabled = false, style = {} }) {
+  const variants = {
+    primary: { background: "linear-gradient(135deg, #1565C0, #00897B)", color: "#fff", border: "none" },
+    secondary: { background: "transparent", color: COLORS.blueAccent, border: `1px solid ${COLORS.blueAccent}` },
+    danger: { background: "rgba(239,83,80,0.15)", color: "#EF9A9A", border: "1px solid rgba(239,83,80,0.4)" },
+    success: { background: "linear-gradient(135deg, #00897B, #1976D2)", color: "#fff", border: "none" },
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      ...variants[variant],
+      padding: "10px 20px",
+      borderRadius: 8,
+      fontSize: 13,
+      fontWeight: 700,
+      letterSpacing: "0.06em",
+      cursor: disabled ? "not-allowed" : "pointer",
+      opacity: disabled ? 0.5 : 1,
+      transition: "all 0.2s",
+      fontFamily: "monospace",
+      ...style
+    }}>
+      {children}
+    </button>
+  );
+}
+
+// ============================================================
+// AI CALL HELPER
+// ============================================================
+async function callClaudeAI(prompt, systemPrompt = "") {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      system: systemPrompt || "You are an expert customs classification AI assistant. Return ONLY valid JSON, no markdown.",
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  const data = await response.json();
+  const text = data.content?.map(i => i.text || "").join("") || "";
+  const clean = text.replace(/```json|```/g, "").trim();
+  try { return JSON.parse(clean); } catch { return { raw: text }; }
+}
+
+// ============================================================
+// PAGE: LOGIN / REGISTER
+// ============================================================
+function LoginPage({ onLogin }) {
+  const [mode, setMode] = useState("login");
+  const [form, setForm] = useState({ email: "", password: "", company: "" });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = () => {
+    setLoading(true);
+    setTimeout(() => { setLoading(false); onLogin({ email: form.email, company: form.company || "VYJ Groups" }); }, 1200);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.navy, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "monospace", position: "relative", overflow: "hidden" }}>
+      {/* Background grid */}
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(21,101,192,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(21,101,192,0.05) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+      <div style={{ position: "absolute", top: -200, right: -200, width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,188,212,0.06) 0%, transparent 70%)" }} />
+
+      <div style={{ position: "relative", width: 420, zIndex: 1 }}>
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <VYJLogo size={56} />
+          <div style={{ color: COLORS.whiteDim, fontSize: 12, marginTop: 12, letterSpacing: "0.15em" }}>
+            AI-POWERED CUSTOMS AUTOMATION
+          </div>
+        </div>
+
+        <Card glow>
+          <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", marginBottom: 24, border: `1px solid ${COLORS.border}` }}>
+            {["login", "register"].map(m => (
+              <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: "10px", background: mode === m ? "linear-gradient(135deg, #1565C0, #00897B)" : "transparent", color: mode === m ? "#fff" : COLORS.whiteDim, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "monospace" }}>
+                {m}
+              </button>
+            ))}
+          </div>
+
+          {mode === "register" && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ color: COLORS.whiteDim, fontSize: 11, letterSpacing: "0.1em" }}>COMPANY NAME</label>
+              <input value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} placeholder="e.g. VYJ Groups" style={{ width: "100%", padding: "10px 12px", background: COLORS.navyMid, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.white, fontSize: 13, marginTop: 6, outline: "none", boxSizing: "border-box" }} />
+            </div>
+          )}
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ color: COLORS.whiteDim, fontSize: 11, letterSpacing: "0.1em" }}>EMAIL ADDRESS</label>
+            <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="admin@vyjgroups.com" type="email" style={{ width: "100%", padding: "10px 12px", background: COLORS.navyMid, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.white, fontSize: 13, marginTop: 6, outline: "none", boxSizing: "border-box" }} />
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ color: COLORS.whiteDim, fontSize: 11, letterSpacing: "0.1em" }}>PASSWORD</label>
+            <input value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="••••••••" type="password" style={{ width: "100%", padding: "10px 12px", background: COLORS.navyMid, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.white, fontSize: 13, marginTop: 6, outline: "none", boxSizing: "border-box" }} />
+          </div>
+
+          <Button onClick={handleSubmit} disabled={loading} style={{ width: "100%", padding: "13px", fontSize: 14, justifyContent: "center" }}>
+            {loading ? "⟳ Authenticating..." : mode === "login" ? "→ Sign In to Platform" : "→ Create Account"}
+          </Button>
+
+          <div style={{ textAlign: "center", marginTop: 16, color: COLORS.whiteDim, fontSize: 11 }}>
+            Demo: use any email & password
+          </div>
+        </Card>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 24 }}>
+          {["🔒 SOC2 Compliant", "🌐 WCO Standards", "⚡ 99.9% Uptime"].map(t => (
+            <span key={t} style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.08em" }}>{t}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SIDEBAR NAV
+// ============================================================
+const NAV_ITEMS = [
+  { id: "dashboard", icon: "⬡", label: "Dashboard" },
+  { id: "upload", icon: "⬆", label: "Upload Documents" },
+  { id: "hscode", icon: "◈", label: "HS Classification" },
+  { id: "compliance", icon: "◉", label: "Compliance Engine" },
+  { id: "documents", icon: "▦", label: "Document Preview" },
+  { id: "tracking", icon: "◎", label: "Submission Tracking" },
+];
+
+function Sidebar({ active, onNav, user }) {
+  return (
+    <div style={{ width: 230, minHeight: "100vh", background: COLORS.navyMid, borderRight: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column", position: "fixed", left: 0, top: 0, bottom: 0, zIndex: 100 }}>
+      <div style={{ padding: "20px 16px", borderBottom: `1px solid ${COLORS.border}` }}>
+        <VYJLogo size={32} />
+      </div>
+
+      <div style={{ padding: "8px", flex: 1 }}>
+        {NAV_ITEMS.map(item => (
+          <button key={item.id} onClick={() => onNav(item.id)} style={{
+            width: "100%", padding: "11px 14px", borderRadius: 8, marginBottom: 2,
+            background: active === item.id ? "linear-gradient(135deg, rgba(21,101,192,0.4), rgba(0,137,123,0.3))" : "transparent",
+            border: active === item.id ? `1px solid ${COLORS.border}` : "1px solid transparent",
+            color: active === item.id ? COLORS.white : COLORS.whiteDim,
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+            fontSize: 13, fontFamily: "monospace", fontWeight: active === item.id ? 700 : 400,
+            transition: "all 0.15s", textAlign: "left",
+            boxShadow: active === item.id ? "0 0 12px rgba(0,188,212,0.1)" : "none"
+          }}>
+            <span style={{ fontSize: 16, opacity: active === item.id ? 1 : 0.5 }}>{item.icon}</span>
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ padding: "16px", borderTop: `1px solid ${COLORS.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg, #1565C0, #00897B)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff" }}>
+            {(user?.email?.[0] || "U").toUpperCase()}
+          </div>
+          <div>
+            <div style={{ color: COLORS.white, fontSize: 12, fontWeight: 700 }}>{user?.company || "VYJ Groups"}</div>
+            <div style={{ color: COLORS.whiteDim, fontSize: 10 }}>{user?.email || "admin@vyj.com"}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: DASHBOARD
+// ============================================================
+function DashboardPage() {
+  const shipments = [
+    { id: "SHP-2024-001", route: "CN → IN", status: "Cleared", hs: "8471.30", risk: "Low", date: "2024-01-15" },
+    { id: "SHP-2024-002", route: "DE → US", status: "Pending", hs: "8544.42", risk: "Medium", date: "2024-01-16" },
+    { id: "SHP-2024-003", route: "JP → UK", status: "Hold", hs: "9018.19", risk: "High", date: "2024-01-17" },
+    { id: "SHP-2024-004", route: "US → AU", status: "Cleared", hs: "3004.90", risk: "Low", date: "2024-01-18" },
+    { id: "SHP-2024-005", route: "IN → AE", status: "Processing", hs: "6203.42", risk: "Low", date: "2024-01-19" },
+  ];
+
+  const alerts = [
+    { type: "danger", msg: "SHP-2024-003: Medical device requires FDA prior notice — blocked at US CBP" },
+    { type: "warning", msg: "SHP-2024-002: Cable assembly may require FCC certification for US import" },
+    { type: "warning", msg: "HS 3004.90 — Pharma shipment to AU: TGA pre-approval recommended" },
+  ];
+
+  return (
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ color: COLORS.white, fontSize: 22, fontWeight: 800, fontFamily: "Georgia, serif", margin: 0 }}>Operations Dashboard</h1>
+        <p style={{ color: COLORS.whiteDim, fontSize: 13, margin: "6px 0 0", fontFamily: "monospace" }}>Real-time overview · {new Date().toLocaleDateString("en-GB", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+      </div>
+
+      <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
+        <StatCard icon="📦" label="TOTAL SHIPMENTS" value="1,247" delta="+12% this month" color={COLORS.blueAccent} />
+        <StatCard icon="✅" label="CLEARED TODAY" value="38" delta="+5 vs yesterday" color={COLORS.success} />
+        <StatCard icon="⚠️" label="COMPLIANCE ALERTS" value="7" color={COLORS.warning} />
+        <StatCard icon="⏱" label="AVG CLEARANCE TIME" value="4.2h" delta="-38% vs manual" color={COLORS.greenGlow} />
+        <StatCard icon="🎯" label="AI ACCURACY" value="97.4%" delta="+1.2% this quarter" color={COLORS.blueAccent} />
+      </div>
+
+      {/* Alerts */}
+      <Card style={{ marginBottom: 24 }}>
+        <div style={{ color: COLORS.white, fontSize: 14, fontWeight: 700, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          <span>⚡</span> Active Compliance Alerts
+        </div>
+        {alerts.map((a, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", borderRadius: 8, marginBottom: 8, background: a.type === "danger" ? "rgba(239,83,80,0.08)" : "rgba(255,167,38,0.08)", border: `1px solid ${a.type === "danger" ? "rgba(239,83,80,0.25)" : "rgba(255,167,38,0.25)"}` }}>
+            <span style={{ fontSize: 14 }}>{a.type === "danger" ? "🔴" : "🟡"}</span>
+            <span style={{ color: COLORS.whiteDim, fontSize: 12, fontFamily: "monospace" }}>{a.msg}</span>
+          </div>
+        ))}
+      </Card>
+
+      {/* Recent Shipments Table */}
+      <Card>
+        <div style={{ color: COLORS.white, fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Recent Shipments</div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "monospace", fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                {["Shipment ID", "Route", "HS Code", "Risk Level", "Status", "Date"].map(h => (
+                  <th key={h} style={{ color: COLORS.whiteDim, padding: "8px 12px", textAlign: "left", letterSpacing: "0.08em", fontSize: 10, fontWeight: 700 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {shipments.map((s, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
+                  <td style={{ padding: "10px 12px", color: COLORS.blueAccent }}>{s.id}</td>
+                  <td style={{ padding: "10px 12px", color: COLORS.white }}>{s.route}</td>
+                  <td style={{ padding: "10px 12px", color: COLORS.greenGlow }}>{s.hs}</td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <Badge color={s.risk === "High" ? "danger" : s.risk === "Medium" ? "warning" : "success"}>{s.risk}</Badge>
+                  </td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <Badge color={s.status === "Cleared" ? "success" : s.status === "Hold" ? "danger" : "blue"}>{s.status}</Badge>
+                  </td>
+                  <td style={{ padding: "10px 12px", color: COLORS.whiteDim }}>{s.date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: DOCUMENT UPLOAD
+// ============================================================
+function UploadPage({ onResult }) {
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [drag, setDrag] = useState(false);
+  const fileRef = useRef();
+
+  const handleFiles = (f) => {
+    const arr = Array.from(f);
+    setFiles(arr);
+    setResult(null);
+  };
+
+  const analyzeWithAI = async () => {
+    if (!files.length) return;
+    setLoading(true);
+    try {
+      const fileName = files[0].name;
+      const prompt = `A user uploaded a customs document named "${fileName}". 
+      Simulate extraction of fields from this document and return JSON with:
+      {
+        "productDescription": "detailed product description",
+        "quantity": "number with unit",
+        "weight": "weight in kg",
+        "value": "USD value",
+        "incoterms": "one of EXW/FOB/CIF/DDP/DAP",
+        "originCountry": "country name",
+        "destinationCountry": "country name",
+        "hsCodeSuggestion": "6-digit HS code",
+        "confidence": number between 0.85 and 0.99,
+        "extractedFields": 7
+      }
+      Make the data realistic for international trade.`;
+
+      const data = await callClaudeAI(prompt);
+      setResult(data);
+      if (onResult) onResult(data);
+    } catch (e) {
+      setResult({ error: "AI parsing failed. Please retry." });
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ color: COLORS.white, fontSize: 22, fontWeight: 800, fontFamily: "Georgia, serif", margin: 0 }}>Document Upload & AI Parsing</h1>
+        <p style={{ color: COLORS.whiteDim, fontSize: 13, margin: "6px 0 0", fontFamily: "monospace" }}>Upload commercial invoices, packing lists, or certificates of origin</p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        {/* Upload Zone */}
+        <Card>
+          <div
+            onDragOver={e => { e.preventDefault(); setDrag(true); }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={e => { e.preventDefault(); setDrag(false); handleFiles(e.dataTransfer.files); }}
+            onClick={() => fileRef.current.click()}
+            style={{
+              border: `2px dashed ${drag ? COLORS.greenGlow : COLORS.border}`,
+              borderRadius: 10, padding: "48px 24px", textAlign: "center", cursor: "pointer",
+              background: drag ? "rgba(0,188,212,0.05)" : "transparent",
+              transition: "all 0.2s"
+            }}
+          >
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📄</div>
+            <div style={{ color: COLORS.white, fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Drop files here or click to browse</div>
+            <div style={{ color: COLORS.whiteDim, fontSize: 12 }}>Supports PDF, XLSX, PNG, JPG · Max 50MB</div>
+            <input ref={fileRef} type="file" multiple accept=".pdf,.xlsx,.xls,.png,.jpg,.jpeg" onChange={e => handleFiles(e.target.files)} style={{ display: "none" }} />
+          </div>
+
+          {files.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              {files.map((f, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: COLORS.navyMid, borderRadius: 8, marginBottom: 6 }}>
+                  <span>📎</span>
+                  <span style={{ color: COLORS.white, fontSize: 12, flex: 1 }}>{f.name}</span>
+                  <span style={{ color: COLORS.whiteDim, fontSize: 11 }}>{(f.size / 1024).toFixed(0)} KB</span>
+                </div>
+              ))}
+              <Button onClick={analyzeWithAI} disabled={loading} style={{ width: "100%", marginTop: 12 }}>
+                {loading ? "⟳ AI Analyzing Document..." : "⚡ Analyze with AI"}
+              </Button>
+            </div>
+          )}
+        </Card>
+
+        {/* Result Panel */}
+        <Card glow={!!result}>
+          <div style={{ color: COLORS.whiteDim, fontSize: 11, letterSpacing: "0.1em", marginBottom: 14 }}>AI EXTRACTION RESULTS</div>
+          {loading && <Spinner />}
+          {!loading && !result && (
+            <div style={{ textAlign: "center", padding: "40px 0", color: COLORS.whiteDim, fontSize: 13 }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>🤖</div>
+              Upload a document to begin AI analysis
+            </div>
+          )}
+          {result && !result.error && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <span style={{ color: COLORS.success, fontSize: 12, fontFamily: "monospace" }}>✓ Extraction Complete</span>
+                <Badge color="green">{result.confidence ? `${(result.confidence * 100).toFixed(1)}% Confidence` : "High Confidence"}</Badge>
+              </div>
+              {Object.entries(result).filter(([k]) => k !== "confidence" && k !== "extractedFields").map(([k, v]) => (
+                <div key={k} style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}22`, padding: "8px 0" }}>
+                  <span style={{ color: COLORS.whiteDim, fontSize: 11, width: 160, flexShrink: 0, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: "0.06em" }}>{k.replace(/([A-Z])/g, " $1")}</span>
+                  <span style={{ color: COLORS.white, fontSize: 12 }}>{String(v)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {result?.error && <div style={{ color: COLORS.danger, fontSize: 13 }}>{result.error}</div>}
+        </Card>
+      </div>
+
+      {/* Supported Formats */}
+      <Card style={{ marginTop: 20 }}>
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+          {[["📄 Commercial Invoice", "Auto-extract line items, values, parties"],
+            ["📦 Packing List", "Quantities, weights, dimensions per SKU"],
+            ["🏭 Bill of Lading", "Carrier, vessel, port, freight details"],
+            ["📜 Certificate of Origin", "Origin declarations, preferential duty"]].map(([t, d]) => (
+            <div key={t} style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ color: COLORS.white, fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{t}</div>
+              <div style={{ color: COLORS.whiteDim, fontSize: 11 }}>{d}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: HS CODE CLASSIFICATION
+// ============================================================
+function HSCodePage() {
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const classify = async () => {
+    if (!input.trim()) return;
+    setLoading(true);
+    try {
+      const prompt = `Classify this product for customs/HS code: "${input}"
+      Return JSON:
+      {
+        "predictedHSCode": "XXXX.XX",
+        "description": "official WCO description of this HS heading",
+        "confidence": number 0.0-1.0,
+        "confidenceLabel": "High/Medium/Low",
+        "reasoning": "2-3 sentence explanation of why this HS code was chosen, mentioning product function, material, and classification rules",
+        "alternatives": [
+          {"code": "XXXX.XX", "description": "heading description", "confidence": number, "reason": "why this could apply"},
+          {"code": "XXXX.XX", "description": "heading description", "confidence": number, "reason": "why this could apply"},
+          {"code": "XXXX.XX", "description": "heading description", "confidence": number, "reason": "why this could apply"}
+        ],
+        "requiredAttributes": ["material composition", "function", "end use"],
+        "dutyNotes": "brief note on typical duty treatment globally"
+      }`;
+      const data = await callClaudeAI(prompt);
+      setResult(data);
+    } catch (e) {
+      setResult({ error: "Classification failed. Retry." });
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ color: COLORS.white, fontSize: 22, fontWeight: 800, fontFamily: "Georgia, serif", margin: 0 }}>AI HS Code Classification</h1>
+        <p style={{ color: COLORS.whiteDim, fontSize: 13, margin: "6px 0 0", fontFamily: "monospace" }}>Powered by Large Language Models · WCO Harmonized System 2022</p>
+      </div>
+
+      <Card style={{ marginBottom: 20 }}>
+        <label style={{ color: COLORS.whiteDim, fontSize: 11, letterSpacing: "0.1em" }}>PRODUCT DESCRIPTION</label>
+        <textarea
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="e.g. Lithium-ion rechargeable battery pack, 48V 20Ah, for electric bicycles, with integrated BMS..."
+          rows={4}
+          style={{ width: "100%", padding: "12px", background: COLORS.navyMid, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.white, fontSize: 13, marginTop: 8, outline: "none", resize: "vertical", fontFamily: "monospace", boxSizing: "border-box" }}
+        />
+        <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+          <Button onClick={classify} disabled={loading || !input.trim()}>
+            {loading ? "⟳ Classifying..." : "🔍 Classify with AI"}
+          </Button>
+          {["Laptop computer", "Cotton T-shirt", "Solar panel 400W", "Pharmaceutical tablets"].map(ex => (
+            <button key={ex} onClick={() => setInput(ex)} style={{ padding: "8px 14px", background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 6, color: COLORS.whiteDim, cursor: "pointer", fontSize: 11, fontFamily: "monospace" }}>{ex}</button>
+          ))}
+        </div>
+      </Card>
+
+      {loading && <Card><Spinner /></Card>}
+
+      {result && !result.error && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          {/* Primary Result */}
+          <Card glow>
+            <div style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.12em", marginBottom: 12 }}>PRIMARY CLASSIFICATION</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
+              <div style={{ fontSize: 36, fontWeight: 800, fontFamily: "Georgia, serif", background: "linear-gradient(135deg, #00BCD4, #1976D2)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                {result.predictedHSCode}
+              </div>
+              <Badge color={result.confidenceLabel === "High" ? "green" : result.confidenceLabel === "Medium" ? "warning" : "danger"}>
+                {result.confidenceLabel} · {result.confidence ? `${(result.confidence * 100).toFixed(1)}%` : ""}
+              </Badge>
+            </div>
+            <div style={{ color: COLORS.white, fontSize: 13, marginBottom: 12 }}>{result.description}</div>
+
+            {/* Confidence Bar */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ color: COLORS.whiteDim, fontSize: 10 }}>AI Confidence</span>
+                <span style={{ color: COLORS.greenGlow, fontSize: 10 }}>{result.confidence ? `${(result.confidence * 100).toFixed(1)}%` : "N/A"}</span>
+              </div>
+              <div style={{ height: 6, background: COLORS.border, borderRadius: 3 }}>
+                <div style={{ height: "100%", width: `${(result.confidence || 0.9) * 100}%`, background: "linear-gradient(90deg, #1976D2, #00BCD4)", borderRadius: 3 }} />
+              </div>
+            </div>
+
+            <div style={{ background: COLORS.navyMid, borderRadius: 8, padding: "12px", borderLeft: `3px solid ${COLORS.greenGlow}` }}>
+              <div style={{ color: COLORS.greenGlow, fontSize: 10, letterSpacing: "0.1em", marginBottom: 6 }}>AI REASONING</div>
+              <div style={{ color: COLORS.whiteDim, fontSize: 12, lineHeight: 1.6 }}>{result.reasoning}</div>
+            </div>
+
+            {result.requiredAttributes && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>REQUIRED ATTRIBUTES FOR DECLARATION</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {result.requiredAttributes.map((a, i) => <Badge key={i} color="blue">{a}</Badge>)}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Alternatives */}
+          <div>
+            <Card>
+              <div style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.12em", marginBottom: 12 }}>TOP 3 ALTERNATIVES</div>
+              {(result.alternatives || []).map((alt, i) => (
+                <div key={i} style={{ padding: "12px", background: COLORS.navyMid, borderRadius: 8, marginBottom: 8, border: `1px solid ${COLORS.border}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: COLORS.blueAccent, fontWeight: 800, fontFamily: "Georgia, serif", fontSize: 15 }}>#{i + 1} · {alt.code}</span>
+                    <Badge color="blue">{alt.confidence ? `${(alt.confidence * 100).toFixed(0)}%` : "—"}</Badge>
+                  </div>
+                  <div style={{ color: COLORS.white, fontSize: 12, marginBottom: 4 }}>{alt.description}</div>
+                  <div style={{ color: COLORS.whiteDim, fontSize: 11 }}>{alt.reason}</div>
+                </div>
+              ))}
+            </Card>
+
+            {result.dutyNotes && (
+              <Card style={{ marginTop: 16 }}>
+                <div style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>DUTY GUIDANCE</div>
+                <div style={{ color: COLORS.white, fontSize: 12, lineHeight: 1.6 }}>{result.dutyNotes}</div>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: COMPLIANCE ENGINE
+// ============================================================
+function CompliancePage() {
+  const [form, setForm] = useState({ hs: "", origin: "", destination: "", value: "", product: "" });
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const check = async () => {
+    setLoading(true);
+    try {
+      const prompt = `Perform customs compliance check:
+      HS Code: ${form.hs}, Origin: ${form.origin}, Destination: ${form.destination}, Value: USD ${form.value}, Product: ${form.product}
+      
+      Return JSON:
+      {
+        "overallRisk": "Low/Medium/High/Critical",
+        "riskScore": number 0-100,
+        "issues": [
+          {"type": "Sanctions/License/Restriction/Duty/Documentation", "severity": "Low/Medium/High", "description": "specific issue", "action": "recommended action"}
+        ],
+        "sanctions": {"applies": boolean, "details": "details or none"},
+        "licenseRequired": boolean,
+        "licenseType": "type or null",
+        "dutyEstimate": "estimated duty rate or range",
+        "vatNote": "VAT/GST note for destination",
+        "recommendations": ["actionable recommendation 1", "recommendation 2", "recommendation 3"]
+      }`;
+      const data = await callClaudeAI(prompt);
+      setResult(data);
+    } catch (e) {
+      setResult({ error: "Check failed." });
+    }
+    setLoading(false);
+  };
+
+  const riskColor = { Low: "success", Medium: "warning", High: "danger", Critical: "danger" };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ color: COLORS.white, fontSize: 22, fontWeight: 800, fontFamily: "Georgia, serif", margin: 0 }}>AI Compliance Engine</h1>
+        <p style={{ color: COLORS.whiteDim, fontSize: 13, margin: "6px 0 0", fontFamily: "monospace" }}>Sanctions screening · License checks · Country restrictions · Value thresholds</p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 20 }}>
+        <Card>
+          <div style={{ color: COLORS.whiteDim, fontSize: 11, letterSpacing: "0.1em", marginBottom: 16 }}>SHIPMENT PARAMETERS</div>
+          {[
+            { key: "product", label: "PRODUCT DESCRIPTION", ph: "e.g. Drone with camera, 2kg" },
+            { key: "hs", label: "HS CODE", ph: "e.g. 8806.21" },
+            { key: "origin", label: "ORIGIN COUNTRY", ph: "e.g. China" },
+            { key: "destination", label: "DESTINATION COUNTRY", ph: "e.g. United States" },
+            { key: "value", label: "SHIPMENT VALUE (USD)", ph: "e.g. 15000" },
+          ].map(f => (
+            <div key={f.key} style={{ marginBottom: 14 }}>
+              <label style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.1em" }}>{f.label}</label>
+              <input value={form[f.key]} onChange={e => setForm({ ...form, [f.key]: e.target.value })} placeholder={f.ph}
+                style={{ width: "100%", padding: "9px 11px", background: COLORS.navyMid, border: `1px solid ${COLORS.border}`, borderRadius: 7, color: COLORS.white, fontSize: 12, marginTop: 5, outline: "none", boxSizing: "border-box", fontFamily: "monospace" }} />
+            </div>
+          ))}
+          <Button onClick={check} disabled={loading || !form.product} style={{ width: "100%" }}>
+            {loading ? "⟳ AI Screening..." : "🔍 Run Compliance Check"}
+          </Button>
+        </Card>
+
+        <div>
+          {loading && <Card><Spinner /></Card>}
+          {result && !result.error && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Risk Score */}
+              <Card glow={result.overallRisk === "High" || result.overallRisk === "Critical"}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <div>
+                    <div style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.12em" }}>OVERALL RISK ASSESSMENT</div>
+                    <div style={{ fontSize: 32, fontWeight: 800, fontFamily: "Georgia, serif", color: result.overallRisk === "Low" ? COLORS.success : result.overallRisk === "Medium" ? COLORS.warning : COLORS.danger, marginTop: 4 }}>
+                      {result.overallRisk}
+                    </div>
+                  </div>
+                  <div style={{ width: 70, height: 70, borderRadius: "50%", background: `conic-gradient(${result.overallRisk === "Low" ? COLORS.success : result.overallRisk === "Medium" ? COLORS.warning : COLORS.danger} ${(result.riskScore || 50) * 3.6}deg, ${COLORS.border} 0)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: 54, height: 54, borderRadius: "50%", background: COLORS.card, display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.white, fontSize: 14, fontWeight: 800 }}>
+                      {result.riskScore}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ padding: "6px 12px", background: result.sanctions?.applies ? "rgba(239,83,80,0.15)" : "rgba(102,187,106,0.1)", borderRadius: 6, border: `1px solid ${result.sanctions?.applies ? "rgba(239,83,80,0.3)" : "rgba(102,187,106,0.2)"}` }}>
+                    <span style={{ color: result.sanctions?.applies ? COLORS.danger : COLORS.success, fontSize: 11, fontFamily: "monospace" }}>{result.sanctions?.applies ? "⛔ SANCTIONS APPLY" : "✓ NO SANCTIONS"}</span>
+                  </div>
+                  <div style={{ padding: "6px 12px", background: result.licenseRequired ? "rgba(255,167,38,0.15)" : "rgba(102,187,106,0.1)", borderRadius: 6, border: `1px solid ${result.licenseRequired ? "rgba(255,167,38,0.3)" : "rgba(102,187,106,0.2)"}` }}>
+                    <span style={{ color: result.licenseRequired ? COLORS.warning : COLORS.success, fontSize: 11, fontFamily: "monospace" }}>{result.licenseRequired ? `⚠ LICENSE: ${result.licenseType || "Required"}` : "✓ NO LICENSE NEEDED"}</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Issues */}
+              {result.issues?.length > 0 && (
+                <Card>
+                  <div style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.12em", marginBottom: 12 }}>COMPLIANCE ISSUES DETECTED</div>
+                  {result.issues.map((issue, i) => (
+                    <div key={i} style={{ padding: "12px", borderRadius: 8, marginBottom: 8, background: COLORS.navyMid, borderLeft: `3px solid ${issue.severity === "High" ? COLORS.danger : issue.severity === "Medium" ? COLORS.warning : COLORS.success}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ color: COLORS.white, fontSize: 12, fontWeight: 700 }}>{issue.type}</span>
+                        <Badge color={issue.severity === "High" ? "danger" : issue.severity === "Medium" ? "warning" : "success"}>{issue.severity}</Badge>
+                      </div>
+                      <div style={{ color: COLORS.whiteDim, fontSize: 12, marginBottom: 6 }}>{issue.description}</div>
+                      <div style={{ color: COLORS.blueAccent, fontSize: 11, fontFamily: "monospace" }}>→ {issue.action}</div>
+                    </div>
+                  ))}
+                </Card>
+              )}
+
+              {/* Duty & Recommendations */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <Card>
+                  <div style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>DUTY ESTIMATE</div>
+                  <div style={{ color: COLORS.greenGlow, fontSize: 20, fontWeight: 800 }}>{result.dutyEstimate}</div>
+                  {result.vatNote && <div style={{ color: COLORS.whiteDim, fontSize: 12, marginTop: 8 }}>{result.vatNote}</div>}
+                </Card>
+                <Card>
+                  <div style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>AI RECOMMENDATIONS</div>
+                  {(result.recommendations || []).map((r, i) => (
+                    <div key={i} style={{ color: COLORS.whiteDim, fontSize: 12, marginBottom: 6, paddingLeft: 12, borderLeft: `2px solid ${COLORS.blueAccent}` }}>{r}</div>
+                  ))}
+                </Card>
+              </div>
+            </div>
+          )}
+          {!loading && !result && (
+            <Card style={{ textAlign: "center", padding: "60px" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🛡️</div>
+              <div style={{ color: COLORS.whiteDim, fontSize: 14 }}>Fill in shipment details to run AI compliance screening</div>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: DOCUMENT PREVIEW
+// ============================================================
+function DocumentPage() {
+  const [loading, setLoading] = useState(false);
+  const [doc, setDoc] = useState(null);
+  const [form, setForm] = useState({ exporter: "VYJ Groups Pvt Ltd", importer: "", origin: "India", destination: "Germany", product: "", hs: "", value: "" });
+
+  const generate = async () => {
+    setLoading(true);
+    try {
+      const prompt = `Generate a complete customs declaration document as JSON:
+      Exporter: ${form.exporter}, Importer: ${form.importer || "ABC GmbH"}, 
+      Origin: ${form.origin}, Destination: ${form.destination},
+      Product: ${form.product || "Electronic Components"}, HS: ${form.hs || "8541.10"}, Value: USD ${form.value || "5000"}
+      
+      Return JSON:
+      {
+        "declarationNumber": "CUSDDEC-XXXX-XXXXX",
+        "declarationDate": "ISO date",
+        "exporter": {"name": string, "address": string, "country": string, "eori": string},
+        "importer": {"name": string, "address": string, "country": string, "vatNumber": string},
+        "transport": {"mode": "Air/Sea/Road/Rail", "vessel": string, "port": string},
+        "lineItems": [
+          {"description": string, "hsCode": string, "quantity": string, "weight": string, "value": string, "origin": string, "dutyRate": string}
+        ],
+        "totalValue": string,
+        "totalWeight": string,
+        "incoterms": string,
+        "currency": "USD",
+        "specialInstructions": string
+      }`;
+      const data = await callClaudeAI(prompt);
+      setDoc(data);
+    } catch (e) { setDoc({ error: true }); }
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ color: COLORS.white, fontSize: 22, fontWeight: 800, fontFamily: "Georgia, serif", margin: 0 }}>Auto-Generated Customs Declaration</h1>
+        <p style={{ color: COLORS.whiteDim, fontSize: 13, margin: "6px 0 0", fontFamily: "monospace" }}>AI generates complete, validated customs documents instantly</p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20 }}>
+        <Card>
+          <div style={{ color: COLORS.whiteDim, fontSize: 11, letterSpacing: "0.1em", marginBottom: 14 }}>SHIPMENT DETAILS</div>
+          {[
+            ["exporter", "EXPORTER NAME"],
+            ["importer", "IMPORTER NAME"],
+            ["origin", "ORIGIN COUNTRY"],
+            ["destination", "DESTINATION COUNTRY"],
+            ["product", "PRODUCT DESCRIPTION"],
+            ["hs", "HS CODE"],
+            ["value", "TOTAL VALUE (USD)"],
+          ].map(([k, l]) => (
+            <div key={k} style={{ marginBottom: 12 }}>
+              <label style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.08em" }}>{l}</label>
+              <input value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })}
+                style={{ width: "100%", padding: "8px 10px", background: COLORS.navyMid, border: `1px solid ${COLORS.border}`, borderRadius: 6, color: COLORS.white, fontSize: 12, marginTop: 4, outline: "none", boxSizing: "border-box", fontFamily: "monospace" }} />
+            </div>
+          ))}
+          <Button onClick={generate} disabled={loading} style={{ width: "100%" }}>
+            {loading ? "⟳ Generating..." : "📄 Generate Document"}
+          </Button>
+        </Card>
+
+        <div>
+          {loading && <Card><Spinner /></Card>}
+          {doc && !doc.error && (
+            <Card glow>
+              {/* Document Header */}
+              <div style={{ borderBottom: `2px solid ${COLORS.border}`, paddingBottom: 16, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ color: COLORS.white, fontSize: 16, fontWeight: 800, fontFamily: "Georgia, serif" }}>CUSTOMS DECLARATION</div>
+                  <div style={{ color: COLORS.greenGlow, fontSize: 12, fontFamily: "monospace" }}>{doc.declarationNumber}</div>
+                  <div style={{ color: COLORS.whiteDim, fontSize: 11 }}>{doc.declarationDate}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <VYJLogo size={28} showText={false} />
+                  <div style={{ color: COLORS.whiteDim, fontSize: 10, marginTop: 4 }}>AI-GENERATED DOCUMENT</div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                {[["EXPORTER", doc.exporter], ["IMPORTER", doc.importer]].map(([label, party]) => (
+                  <div key={label} style={{ background: COLORS.navyMid, borderRadius: 8, padding: "12px" }}>
+                    <div style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>{label}</div>
+                    {party && Object.entries(party).map(([k, v]) => (
+                      <div key={k} style={{ color: COLORS.white, fontSize: 11, marginBottom: 2 }}><span style={{ color: COLORS.whiteDim }}>{k}: </span>{v}</div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              {doc.transport && (
+                <div style={{ background: COLORS.navyMid, borderRadius: 8, padding: "12px", marginBottom: 16, display: "flex", gap: 20 }}>
+                  <div><span style={{ color: COLORS.whiteDim, fontSize: 10 }}>MODE: </span><span style={{ color: COLORS.white, fontSize: 12 }}>{doc.transport.mode}</span></div>
+                  <div><span style={{ color: COLORS.whiteDim, fontSize: 10 }}>VESSEL: </span><span style={{ color: COLORS.white, fontSize: 12 }}>{doc.transport.vessel}</span></div>
+                  <div><span style={{ color: COLORS.whiteDim, fontSize: 10 }}>PORT: </span><span style={{ color: COLORS.white, fontSize: 12 }}>{doc.transport.port}</span></div>
+                  <div><span style={{ color: COLORS.whiteDim, fontSize: 10 }}>INCOTERMS: </span><span style={{ color: COLORS.greenGlow, fontSize: 12, fontWeight: 700 }}>{doc.incoterms}</span></div>
+                </div>
+              )}
+
+              {/* Line Items Table */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ color: COLORS.whiteDim, fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>LINE ITEMS</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontFamily: "monospace" }}>
+                  <thead>
+                    <tr style={{ background: COLORS.navyMid }}>
+                      {["Description", "HS Code", "Qty", "Weight", "Value", "Origin", "Duty Rate"].map(h => (
+                        <th key={h} style={{ padding: "7px 10px", color: COLORS.whiteDim, textAlign: "left", borderBottom: `1px solid ${COLORS.border}` }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(doc.lineItems || []).map((item, i) => (
+                      <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
+                        <td style={{ padding: "8px 10px", color: COLORS.white }}>{item.description}</td>
+                        <td style={{ padding: "8px 10px", color: COLORS.greenGlow }}>{item.hsCode}</td>
+                        <td style={{ padding: "8px 10px", color: COLORS.white }}>{item.quantity}</td>
+                        <td style={{ padding: "8px 10px", color: COLORS.whiteDim }}>{item.weight}</td>
+                        <td style={{ padding: "8px 10px", color: COLORS.white }}>{item.value}</td>
+                        <td style={{ padding: "8px 10px", color: COLORS.whiteDim }}>{item.origin}</td>
+                        <td style={{ padding: "8px 10px", color: COLORS.warning }}>{item.dutyRate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: "flex", gap: 16, justifyContent: "flex-end", borderTop: `1px solid ${COLORS.border}`, paddingTop: 12 }}>
+                <div style={{ color: COLORS.whiteDim, fontSize: 12 }}>Total Weight: <strong style={{ color: COLORS.white }}>{doc.totalWeight}</strong></div>
+                <div style={{ color: COLORS.whiteDim, fontSize: 12 }}>Total Value: <strong style={{ color: COLORS.greenGlow }}>{doc.totalValue}</strong></div>
+              </div>
+
+              {doc.specialInstructions && (
+                <div style={{ marginTop: 12, padding: "8px 12px", background: "rgba(33,150,243,0.08)", borderRadius: 6, borderLeft: `2px solid ${COLORS.blueAccent}` }}>
+                  <span style={{ color: COLORS.whiteDim, fontSize: 11 }}>Special Instructions: {doc.specialInstructions}</span>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <Button variant="success">📤 Submit to Customs Portal</Button>
+                <Button variant="secondary">🖨 Print Declaration</Button>
+                <Button variant="secondary">📧 Send to Broker</Button>
+              </div>
+            </Card>
+          )}
+          {!loading && !doc && (
+            <Card style={{ textAlign: "center", padding: "80px" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+              <div style={{ color: COLORS.whiteDim, fontSize: 14 }}>Fill in details and generate your customs declaration</div>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: SUBMISSION TRACKING
+// ============================================================
+function TrackingPage() {
+  const submissions = [
+    { id: "SUB-2024-0891", shipment: "SHP-2024-001", lane: "CN → IN", hs: "8471.30", submitted: "2024-01-15 09:22", status: "Cleared", broker: "DHL Trade", response: "Customs Release Issued", time: "2.1h" },
+    { id: "SUB-2024-0892", shipment: "SHP-2024-002", lane: "DE → US", hs: "8544.42", submitted: "2024-01-16 14:05", status: "Under Review", broker: "Flexport", response: "Awaiting CBP Review", time: "—" },
+    { id: "SUB-2024-0893", shipment: "SHP-2024-003", lane: "JP → UK", hs: "9018.19", submitted: "2024-01-17 11:30", status: "Hold", broker: "Maersk Trade", response: "Additional Docs Required: FDA Notice", time: "—" },
+    { id: "SUB-2024-0894", shipment: "SHP-2024-004", lane: "US → AU", hs: "3004.90", submitted: "2024-01-18 08:15", status: "Cleared", broker: "Kuehne+Nagel", response: "ABF Release Granted", time: "4.7h" },
+    { id: "SUB-2024-0895", shipment: "SHP-2024-005", lane: "IN → AE", hs: "6203.42", submitted: "2024-01-19 16:40", status: "Processing", broker: "DP World Trade", response: "In Customs Queue — Priority 3", time: "—" },
+    { id: "SUB-2024-0896", shipment: "SHP-2024-006", lane: "KR → BR", hs: "8703.22", submitted: "2024-01-20 10:00", status: "Cleared", broker: "Expeditors", response: "SISCOMEX Registered", time: "6.2h" },
+  ];
+
+  const statusColor = { Cleared: "success", "Under Review": "blue", Hold: "danger", Processing: "warning" };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ color: COLORS.white, fontSize: 22, fontWeight: 800, fontFamily: "Georgia, serif", margin: 0 }}>Submission Tracking & Audit Log</h1>
+        <p style={{ color: COLORS.whiteDim, fontSize: 13, margin: "6px 0 0", fontFamily: "monospace" }}>Complete audit trail · Real-time status updates · Immutable records</p>
+      </div>
+
+      <div style={{ display: "flex", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
+        <StatCard icon="📤" label="TOTAL SUBMISSIONS" value="6" color={COLORS.blueAccent} />
+        <StatCard icon="✅" label="CLEARED" value="3" color={COLORS.success} />
+        <StatCard icon="⏳" label="IN PROGRESS" value="2" color={COLORS.warning} />
+        <StatCard icon="🚫" label="ON HOLD" value="1" color={COLORS.danger} />
+      </div>
+
+      <Card>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "monospace", fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                {["Submission ID", "Shipment", "Lane", "HS Code", "Submitted", "Broker", "Status", "Response", "Clearance Time"].map(h => (
+                  <th key={h} style={{ padding: "10px 12px", color: COLORS.whiteDim, textAlign: "left", fontSize: 10, letterSpacing: "0.08em", whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {submissions.map((s, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}22`, transition: "background 0.15s" }}>
+                  <td style={{ padding: "11px 12px", color: COLORS.blueAccent, whiteSpace: "nowrap" }}>{s.id}</td>
+                  <td style={{ padding: "11px 12px", color: COLORS.white }}>{s.shipment}</td>
+                  <td style={{ padding: "11px 12px", color: COLORS.whiteDim, whiteSpace: "nowrap" }}>{s.lane}</td>
+                  <td style={{ padding: "11px 12px", color: COLORS.greenGlow, fontWeight: 700 }}>{s.hs}</td>
+                  <td style={{ padding: "11px 12px", color: COLORS.whiteDim, whiteSpace: "nowrap" }}>{s.submitted}</td>
+                  <td style={{ padding: "11px 12px", color: COLORS.white }}>{s.broker}</td>
+                  <td style={{ padding: "11px 12px" }}><Badge color={statusColor[s.status] || "blue"}>{s.status}</Badge></td>
+                  <td style={{ padding: "11px 12px", color: COLORS.whiteDim, maxWidth: 200 }}>{s.response}</td>
+                  <td style={{ padding: "11px 12px", color: s.time !== "—" ? COLORS.success : COLORS.whiteDim }}>{s.time}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
+        <Card>
+          <div style={{ color: COLORS.whiteDim, fontSize: 11, letterSpacing: "0.1em", marginBottom: 14 }}>AUDIT LOG</div>
+          {[
+            ["09:22", "SHP-2024-001 submitted to ICEGATE portal", "success"],
+            ["11:30", "SHP-2024-003 held — FDA notice triggered", "danger"],
+            ["14:05", "SHP-2024-002 classification revised: 8544.42 → 8544.49", "warning"],
+            ["16:40", "SHP-2024-005 queued at Dubai Customs", "blue"],
+          ].map(([t, msg, color], i) => (
+            <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10, paddingLeft: 12, borderLeft: `2px solid ${COLORS[color] || COLORS.blueAccent}` }}>
+              <span style={{ color: COLORS.whiteDim, fontSize: 10, whiteSpace: "nowrap", marginTop: 2 }}>{t}</span>
+              <span style={{ color: COLORS.white, fontSize: 12 }}>{msg}</span>
+            </div>
+          ))}
+        </Card>
+        <Card>
+          <div style={{ color: COLORS.whiteDim, fontSize: 11, letterSpacing: "0.1em", marginBottom: 14 }}>PERFORMANCE METRICS</div>
+          {[
+            ["Average Clearance Time", "4.2 hours", COLORS.greenGlow],
+            ["Manual Processing Reduction", "68%", COLORS.success],
+            ["Classification Accuracy", "97.4%", COLORS.blueAccent],
+            ["Compliance Pass Rate", "91.7%", COLORS.greenGlow],
+          ].map(([label, val, color]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ color: COLORS.whiteDim, fontSize: 12 }}>{label}</span>
+              <span style={{ color, fontSize: 13, fontWeight: 800, fontFamily: "Georgia, serif" }}>{val}</span>
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MAIN APP
+// ============================================================
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [page, setPage] = useState("dashboard");
+
+  if (!user) return <LoginPage onLogin={setUser} />;
+
+  const pages = {
+    dashboard: <DashboardPage />,
+    upload: <UploadPage />,
+    hscode: <HSCodePage />,
+    compliance: <CompliancePage />,
+    documents: <DocumentPage />,
+    tracking: <TrackingPage />,
+  };
+
+  return (
+    <div style={{ background: COLORS.navy, minHeight: "100vh", fontFamily: "monospace" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&display=swap');
+        * { box-sizing: border-box; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: ${COLORS.navyMid}; }
+        ::-webkit-scrollbar-thumb { background: ${COLORS.border}; border-radius: 3px; }
+        button:hover { filter: brightness(1.1); }
+      `}</style>
+
+      <Sidebar active={page} onNav={setPage} user={user} />
+
+      <div style={{ marginLeft: 230, padding: "28px 32px", minHeight: "100vh" }}>
+        {/* Top Bar */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28, paddingBottom: 16, borderBottom: `1px solid ${COLORS.border}` }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Badge color="green">🟢 AI ONLINE</Badge>
+            <Badge color="blue">WCO 2022</Badge>
+            <Badge color="blue">190+ COUNTRIES</Badge>
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <div style={{ color: COLORS.whiteDim, fontSize: 11 }}>🔔 3 alerts</div>
+            <button onClick={() => setUser(null)} style={{ background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 6, color: COLORS.whiteDim, padding: "6px 12px", cursor: "pointer", fontSize: 11, fontFamily: "monospace" }}>
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        {pages[page] || <DashboardPage />}
+      </div>
+    </div>
+  );
+}
